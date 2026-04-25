@@ -1,0 +1,141 @@
+At the time data analysis was started, the email service used to collect the emails, Atomic Mail, did not have any way to access it through an API.
+This functionality is projected to be provided by the company by the end of 2026.
+To assist with extracting the emails from the inbox and storing them locally for data processing, the help of AI was enlisted to develop browser automation code.
+Before utilizing this code, I analyzed it, researched the involved packages and functions utilized, and cleaned it up for the specific nuances of my use case.
+The AI was also consulted for follow-up debugging questions relating to the code it generated.
+The production version of the script used (with access tokens censored) is mail_scrape.py.
+This script is only to be used until such time when Atomic Mail provides API functionality.
+
+Model:
+Prompt: Write a python script that uses playwright to scrape approximately 600 emails from an online Atomic Mail inbox. The sender, date/time, subject line, text, and links within the body of each email need to be extracted and stored in separate columns of a local Excel spreadsheet with a row for each email.
+Generated Code:
+import asyncio
+from playwright.async_api import async_playwright
+import pandas as pd
+
+EMAIL = "your_email"
+PASSWORD = "your_password"
+
+MAX_EMAILS = 600
+
+
+async def scrape_atomic_mail():
+    data = []
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=False)
+        context = await browser.new_context()
+        page = await context.new_page()
+
+        # -----------------------------
+        # 1. LOGIN
+        # -----------------------------
+        await page.goto("https://atomicmail.io/login")  # adjust URL
+
+        await page.fill('input[name="email"]', EMAIL)
+        await page.fill('input[name="password"]', PASSWORD)
+        await page.click('button[type="submit"]')
+
+        await page.wait_for_load_state("networkidle")
+
+        # -----------------------------
+        # 2. GO TO INBOX
+        # -----------------------------
+        await page.goto("https://atomicmail.io/inbox")  # adjust
+
+        await page.wait_for_selector("CSS_SELECTOR_FOR_EMAIL_ROWS")
+
+        emails_scraped = 0
+
+        while emails_scraped < MAX_EMAILS:
+
+            email_rows = await page.query_selector_all("CSS_SELECTOR_FOR_EMAIL_ROWS")
+
+            for i in range(len(email_rows)):
+                if emails_scraped >= MAX_EMAILS:
+                    break
+
+                # Refresh rows (DOM changes after navigation)
+                email_rows = await page.query_selector_all("CSS_SELECTOR_FOR_EMAIL_ROWS")
+                row = email_rows[i]
+
+                # -----------------------------
+                # CLICK EMAIL
+                # -----------------------------
+                await row.click()
+                await page.wait_for_selector("CSS_SELECTOR_FOR_EMAIL_BODY")
+
+                # -----------------------------
+                # EXTRACT DATA
+                # -----------------------------
+                try:
+                    sender = await page.inner_text("CSS_SELECTOR_SENDER")
+                except:
+                    sender = ""
+
+                try:
+                    subject = await page.inner_text("CSS_SELECTOR_SUBJECT")
+                except:
+                    subject = ""
+
+                try:
+                    datetime = await page.inner_text("CSS_SELECTOR_DATETIME")
+                except:
+                    datetime = ""
+
+                try:
+                    body = await page.inner_text("CSS_SELECTOR_BODY")
+                except:
+                    body = ""
+
+                # Extract links
+                links = []
+                link_elements = await page.query_selector_all("CSS_SELECTOR_BODY a")
+                for link in link_elements:
+                    href = await link.get_attribute("href")
+                    if href:
+                        links.append(href)
+
+                links_str = ", ".join(links)
+
+                data.append({
+                    "Sender": sender,
+                    "DateTime": datetime,
+                    "Subject": subject,
+                    "Body": body,
+                    "Links": links_str
+                })
+
+                emails_scraped += 1
+                print(f"Scraped {emails_scraped}")
+
+                # -----------------------------
+                # GO BACK TO INBOX
+                # -----------------------------
+                await page.go_back()
+                await page.wait_for_selector("CSS_SELECTOR_FOR_EMAIL_ROWS")
+
+            # -----------------------------
+            # NEXT PAGE
+            # -----------------------------
+            next_button = await page.query_selector("CSS_SELECTOR_NEXT_PAGE")
+
+            if next_button:
+                await next_button.click()
+                await page.wait_for_load_state("networkidle")
+            else:
+                break
+
+        await browser.close()
+
+    # -----------------------------
+    # SAVE TO EXCEL
+    # -----------------------------
+    df = pd.DataFrame(data)
+    df.to_excel("atomic_mail_export.xlsx", index=False)
+
+    print("Saved to atomic_mail_export.xlsx")
+
+
+if __name__ == "__main__":
+    asyncio.run(scrape_atomic_mail())
