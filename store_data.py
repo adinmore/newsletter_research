@@ -39,6 +39,9 @@ with open(file_name, "r", encoding="utf-8") as j_data:
             links = [l for l in links if ".gif" not in l]
             links = links[:len(links)-3]
             links = links[::2]
+        elif sender_name == "heute":
+            links = links[1::2]
+            links = links[:5] + links[6:]
         
         # Standard basic link filtering
         links = [l for l in links if ".png" not in l]
@@ -46,7 +49,7 @@ with open(file_name, "r", encoding="utf-8") as j_data:
         links = list(set(links))
         
         '''
-        if count == 9:
+        if count == 4:
             for l in links:
                 print(l)
                 webbrowser.open(l)
