@@ -16,6 +16,7 @@ with open(file_name, "r", encoding="utf-8") as j_data:
     data = json.load(j_data)
     count = 1
     for email in data:
+        # Extract email fields from json
         sender = email["sender"]
         subject = email["subject"]
         date = email["date"] + " 2026"
@@ -27,20 +28,27 @@ with open(file_name, "r", encoding="utf-8") as j_data:
         links = links.split(',')
 
         # Sender-specific link filtering
-        if sender_name == "24":
-            links = links[1:]
-            # Remove links to the weather page
-            links = [l for l in links if "kiderul" not in l]
-        elif sender_name == "origo":
+        if sender_name == "origo":
             links = links[1:len(links)-17]
             # Remove duplicate links
             links = links[::2]
+        elif sender_name == "blikk":
+            links = links[5:len(links)-15]
+            links = [l for l in links if ".png" not in l]
+            links = [l for l in links if ".gif" not in l]
+            links = links[::2]
+        elif sender_name == "24":
+            links = links[1:]
+            # Remove links to the weather page
+            links = [l for l in links if "kiderul" not in l]
         elif sender_name == "dS":
             links = [l for l in links if ".gif" not in l]
             links = links[:len(links)-3]
+            # Remove duplicate links
             links = links[::2]
         elif sender_name == "heute":
             links = links[1::2]
+            # Remove weather
             links = links[:5] + links[6:]
         
         # Standard basic link filtering
@@ -49,7 +57,7 @@ with open(file_name, "r", encoding="utf-8") as j_data:
         links = list(set(links))
         
         '''
-        if count == 4:
+        if count == 12:
             for l in links:
                 print(l)
                 webbrowser.open(l)
