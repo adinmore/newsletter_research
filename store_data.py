@@ -31,12 +31,17 @@ with open(file_name, "r", encoding="utf-8") as j_data:
             links = links[1:]
             # Remove links to the weather page
             links = [l for l in links if "kiderul" not in l]
+        elif sender_name == "origo":
+            links = links[1:len(links)-17]
+            # Remove duplicate links
+            links = links[::2]
         
         # Standard basic link filtering
         links = [l for l in links if ".png" not in l]
+        links = list(set(links))
         
         '''
-        if count == 3:
+        if count == 4:
             for l in links:
                 print(l)
                 webbrowser.open(l)
