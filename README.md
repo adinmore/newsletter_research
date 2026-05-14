@@ -4,5 +4,3 @@ Data processing and analysis scripts for my HQSS 495 - Authoritarian Politics se
 ## Dependencies
 pip install pandas  
 pip install newspaper4k  
-pip install translate  
-pip install libretranslate  
